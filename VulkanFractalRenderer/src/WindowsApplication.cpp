@@ -433,6 +433,19 @@ void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode
             m_fractalRenderer->SetFractalType(static_cast<FractalType>(m_fractalType));
         }
     }
+    else if (controlId == "iterationsSlider" && notificationCode == TB_ENDTRACK) {
+        int value = SendMessage(m_iterationsSlider, TBM_GETPOS, 0, 0);
+        m_maxIterations = value;
+        
+        // Update text display
+        wchar_t buffer[16];
+        swprintf_s(buffer, L"%d", value);
+        SetWindowTextW(m_iterationsText, buffer);
+        
+        if (m_fractalRenderer) {
+            m_fractalRenderer->SetMaxIterations(m_maxIterations);
+        }
+    }
     else if (controlId == "paletteCombo" && notificationCode == CBN_SELCHANGE) {
         int selection = SendMessage(m_paletteCombo, CB_GETCURSEL, 0, 0);
         m_colorPalette = selection;
