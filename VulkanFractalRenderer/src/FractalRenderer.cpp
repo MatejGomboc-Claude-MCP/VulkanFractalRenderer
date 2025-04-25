@@ -75,10 +75,19 @@ void FractalRenderer::Cleanup() {
         }
     }
     
+    // Clear sync objects vectors after destruction
+    m_renderFinishedSemaphores.clear();
+    m_imageAvailableSemaphores.clear();
+    m_inFlightFences.clear();
+    
     // Clean up descriptor pool
     if (m_descriptorPool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
+        m_descriptorPool = VK_NULL_HANDLE;
     }
+    
+    // Clean up descriptor sets vector (these are freed with the pool)
+    m_descriptorSets.clear();
     
     // Clean up uniform buffers and unmap memory
     for (size_t i = 0; i < m_uniformBuffers.size(); i++) {
@@ -90,23 +99,32 @@ void FractalRenderer::Cleanup() {
             }
             
             vkFreeMemory(device, m_uniformBuffersMemory[i], nullptr);
+            m_uniformBuffersMemory[i] = VK_NULL_HANDLE;
         }
         
         if (m_uniformBuffers[i] != VK_NULL_HANDLE) {
             vkDestroyBuffer(device, m_uniformBuffers[i], nullptr);
+            m_uniformBuffers[i] = VK_NULL_HANDLE;
         }
     }
+    
+    // Clear vectors after destruction
+    m_uniformBuffers.clear();
+    m_uniformBuffersMemory.clear();
+    m_uniformBuffersMapped.clear();
     
     CleanupSwapChain();
     
     // Clean up descriptor set layout
     if (m_descriptorSetLayout != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(device, m_descriptorSetLayout, nullptr);
+        m_descriptorSetLayout = VK_NULL_HANDLE;
     }
     
     // Clean up render pass
     if (m_renderPass != VK_NULL_HANDLE) {
         vkDestroyRenderPass(device, m_renderPass, nullptr);
+        m_renderPass = VK_NULL_HANDLE;
     }
 }
 
@@ -117,6 +135,7 @@ void FractalRenderer::CleanupSwapChain() {
     for (auto framebuffer : m_swapChainFramebuffers) {
         vkDestroyFramebuffer(device, framebuffer, nullptr);
     }
+    m_swapChainFramebuffers.clear();
     
     // Free command buffers
     if (!m_commandBuffers.empty()) {
