@@ -46,15 +46,15 @@ A high-performance fractal renderer using C++ and Vulkan, optimized for slower W
    ```
    git clone https://github.com/MatejGomboc-Claude-MCP/VulkanFractalRenderer.git
    ```
-4. Compile the shaders:
+4. Compile the shaders using the provided batch file:
    ```
    cd VulkanFractalRenderer
-   %VULKAN_SDK%\Bin\glslc.exe VulkanFractalRenderer\shaders\fractal.vert -o VulkanFractalRenderer\shaders\fractal.vert.spv
-   %VULKAN_SDK%\Bin\glslc.exe VulkanFractalRenderer\shaders\fractal.frag -o VulkanFractalRenderer\shaders\fractal.frag.spv
+   compile_shaders.bat
    ```
 5. Open `VulkanFractalRenderer.sln` in Visual Studio
 6. Build the solution (F7 or Ctrl+Shift+B)
-7. Copy the compiled shader files (`fractal.vert.spv` and `fractal.frag.spv`) to the output directory
+
+The shader compilation script will automatically copy the compiled shaders to the output directories for both Debug and Release builds.
 
 ## Usage
 
@@ -112,6 +112,18 @@ The renderer includes several optimizations to ensure smooth performance even on
 4. **Double buffering**: Allows simultaneous rendering and display
 5. **Efficient command buffer usage**: Reduces API overhead
 6. **Compiler optimizations**: Release builds use optimized builds with enhanced instruction sets
+
+## Recent Bug Fixes
+
+The following bugs have been fixed in the latest version:
+
+1. Fixed potential memory leak in swapchain recreation logic
+2. Improved shader file path resolution for more reliable shader loading
+3. Added proper cleanup in the WindowsApplication destructor for Windows controls
+4. Fixed potential array bounds issues in vertex shader
+5. Improved shader validation and error handling
+6. Added validation to prevent setting invalid window dimensions
+7. Added a batch file for easier shader compilation
 
 ## License
 
