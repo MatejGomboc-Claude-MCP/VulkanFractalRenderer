@@ -680,15 +680,38 @@ void VulkanContext::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
 
 uint32_t VulkanContext::AcquireNextImage(VkSemaphore imageAvailableSemaphore) {
     uint32_t imageIndex;
-    VkResult result = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
-
-    if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebufferResized) {
-        m_framebufferResized = false;
-        RecreateSwapChain();
-        return AcquireNextImage(imageAvailableSemaphore); // Try again with the new swapchain
-    } else if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to acquire swap chain image!");
-    }
+    
+    // Try to acquire next image in a loop, recreating the swapchain if necessary
+    bool swapChainRecreated = false;
+    VkResult result;
+    
+    do {
+        // Attempt to acquire the next image
+        result = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, 
+                                       imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        
+        // Handle swapchain outdated or suboptimal
+        if (result == VK_ERROR_OUT_OF_DATE_KHR || 
+            (result == VK_SUBOPTIMAL_KHR && !swapChainRecreated) || 
+            m_framebufferResized) {
+            
+            // Only recreate the swapchain once
+            if (swapChainRecreated) {
+                throw std::runtime_error("Failed to recreate swap chain!");
+            }
+            
+            m_framebufferResized = false;
+            RecreateSwapChain();
+            swapChainRecreated = true;
+        } 
+        else if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to acquire swap chain image!");
+        }
+        else {
+            // Successful acquisition, break out of the loop
+            break;
+        }
+    } while (true);
 
     return imageIndex;
 }
