@@ -6,9 +6,24 @@
 
 // Convert a regular string to a wide string for Windows API
 std::wstring StringToWString(const std::string& str) {
+    if (str.empty()) {
+        return std::wstring();
+    }
+    
+    // Get the required buffer size
     int size = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, nullptr, 0);
-    std::wstring wstr(size - 1, 0);
-    MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr.data(), size);
+    if (size <= 0) {
+        throw std::runtime_error("Failed to convert string to wide string");
+    }
+    
+    // Allocate the wide string buffer (with correct size)
+    std::wstring wstr(size - 1, 0); // -1 because size includes null terminator
+    
+    // Perform the conversion
+    if (MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr.data(), size) == 0) {
+        throw std::runtime_error("Failed to convert string to wide string");
+    }
+    
     return wstr;
 }
 
