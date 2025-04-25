@@ -64,9 +64,11 @@ public:
 
     // Resize handling
     void SetWindowSize(int width, int height) {
-        m_width = width;
-        m_height = height;
-        m_framebufferResized = true;
+        if (width > 0 && height > 0) {
+            m_width = width;
+            m_height = height;
+            m_framebufferResized = true;
+        }
     }
 
 private:
