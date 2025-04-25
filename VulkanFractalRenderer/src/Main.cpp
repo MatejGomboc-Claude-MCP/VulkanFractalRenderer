@@ -17,12 +17,15 @@ std::wstring StringToWString(const std::string& str) {
     }
     
     // Allocate the wide string buffer (with correct size)
-    std::wstring wstr(size - 1, 0); // -1 because size includes null terminator
+    std::wstring wstr(size, 0); // Allocate full size to include null terminator
     
     // Perform the conversion
     if (MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, wstr.data(), size) == 0) {
         throw std::runtime_error("Failed to convert string to wide string");
     }
+    
+    // Resize to remove the null terminator, which is implicitly handled by std::wstring
+    wstr.resize(size - 1);
     
     return wstr;
 }
