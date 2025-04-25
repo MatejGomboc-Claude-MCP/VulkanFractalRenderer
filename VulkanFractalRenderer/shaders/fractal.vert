@@ -16,7 +16,7 @@ void main() {
     );
     
     // Get the position from the vertex ID
-    vec2 position = positions[gl_VertexIndex % 3];
+    vec2 position = positions[gl_VertexIndex];
     
     // Pass the position to the fragment shader as texture coordinates
     // Map from [-1,1] to [0,1] range
