@@ -87,6 +87,9 @@ private:
 
     // Helper function to update uniform buffer
     void UpdateUniformBuffer(uint32_t currentImage);
+    
+    // Command buffer recording
+    void RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
 
     // Shader module creation helper
     VkShaderModule CreateShaderModule(const std::vector<char>& code);
