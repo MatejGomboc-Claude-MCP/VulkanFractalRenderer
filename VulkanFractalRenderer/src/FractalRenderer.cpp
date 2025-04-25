@@ -62,16 +62,20 @@ void FractalRenderer::Cleanup() {
     vkDeviceWaitIdle(device);
     
     // Clean up synchronization objects
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        if (m_renderFinishedSemaphores.size() > i && m_renderFinishedSemaphores[i] != VK_NULL_HANDLE) {
+    for (size_t i = 0; i < m_renderFinishedSemaphores.size(); i++) {
+        if (m_renderFinishedSemaphores[i] != VK_NULL_HANDLE) {
             vkDestroySemaphore(device, m_renderFinishedSemaphores[i], nullptr);
         }
-        
-        if (m_imageAvailableSemaphores.size() > i && m_imageAvailableSemaphores[i] != VK_NULL_HANDLE) {
+    }
+    
+    for (size_t i = 0; i < m_imageAvailableSemaphores.size(); i++) {
+        if (m_imageAvailableSemaphores[i] != VK_NULL_HANDLE) {
             vkDestroySemaphore(device, m_imageAvailableSemaphores[i], nullptr);
         }
-        
-        if (m_inFlightFences.size() > i && m_inFlightFences[i] != VK_NULL_HANDLE) {
+    }
+    
+    for (size_t i = 0; i < m_inFlightFences.size(); i++) {
+        if (m_inFlightFences[i] != VK_NULL_HANDLE) {
             vkDestroyFence(device, m_inFlightFences[i], nullptr);
         }
     }
@@ -92,20 +96,17 @@ void FractalRenderer::Cleanup() {
     
     // Clean up uniform buffers and unmap memory
     for (size_t i = 0; i < m_uniformBuffers.size(); i++) {
+        if (m_uniformBuffersMapped.size() > i && m_uniformBuffersMapped[i] != nullptr) {
+            vkUnmapMemory(device, m_uniformBuffersMemory[i]);
+            m_uniformBuffersMapped[i] = nullptr;
+        }
+        
         if (m_uniformBuffersMemory.size() > i && m_uniformBuffersMemory[i] != VK_NULL_HANDLE) {
-            // Unmap memory before destroying
-            if (m_uniformBuffersMapped.size() > i && m_uniformBuffersMapped[i] != nullptr) {
-                vkUnmapMemory(device, m_uniformBuffersMemory[i]);
-                m_uniformBuffersMapped[i] = nullptr;
-            }
-            
             vkFreeMemory(device, m_uniformBuffersMemory[i], nullptr);
-            m_uniformBuffersMemory[i] = VK_NULL_HANDLE;
         }
         
         if (m_uniformBuffers[i] != VK_NULL_HANDLE) {
             vkDestroyBuffer(device, m_uniformBuffers[i], nullptr);
-            m_uniformBuffers[i] = VK_NULL_HANDLE;
         }
     }
     
