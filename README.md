@@ -46,8 +46,15 @@ A high-performance fractal renderer using C++ and Vulkan, optimized for slower W
    ```
    git clone https://github.com/MatejGomboc-Claude-MCP/VulkanFractalRenderer.git
    ```
-4. Open `VulkanFractalRenderer.sln` in Visual Studio
-5. Build the solution (F7 or Ctrl+Shift+B)
+4. Compile the shaders:
+   ```
+   cd VulkanFractalRenderer
+   %VULKAN_SDK%\Bin\glslc.exe VulkanFractalRenderer\shaders\fractal.vert -o VulkanFractalRenderer\shaders\fractal.vert.spv
+   %VULKAN_SDK%\Bin\glslc.exe VulkanFractalRenderer\shaders\fractal.frag -o VulkanFractalRenderer\shaders\fractal.frag.spv
+   ```
+5. Open `VulkanFractalRenderer.sln` in Visual Studio
+6. Build the solution (F7 or Ctrl+Shift+B)
+7. Copy the compiled shader files (`fractal.vert.spv` and `fractal.frag.spv`) to the output directory
 
 ## Usage
 
