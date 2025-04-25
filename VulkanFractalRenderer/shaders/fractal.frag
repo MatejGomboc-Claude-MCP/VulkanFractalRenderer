@@ -47,7 +47,7 @@ vec2 mapToComplex(vec2 coord) {
     c.x = c.x * 2.0 - 1.0;  // Map from [0,1] to [-1,1]
     c.y = c.y * 2.0 - 1.0;  // Map from [0,1] to [-1,1]
     
-    // Apply aspect ratio correction
+    // Apply aspect ratio correction - multiply X by aspect ratio
     c.x *= ubo.aspectRatio;
     
     // Apply zoom and panning
@@ -161,7 +161,7 @@ int calculateTricorn(vec2 c) {
 int calculateMultibrot(vec2 c) {
     vec2 z = vec2(0.0, 0.0);
     int iterations = 0;
-    float power = ubo.multibrotPower;
+    float power = max(2.0, ubo.multibrotPower); // Ensure power is at least 2 to avoid issues
     
     for(int i = 0; i < ubo.maxIterations; i++) {
         // z = z^power + c (using complex polar form)
@@ -250,7 +250,7 @@ vec3 calculateColor(int iterations) {
         return vec3(0.0, 0.0, 0.0);
     }
     
-    // Normalized iteration count (smooth coloring)
+    // Normalized iteration count with smooth coloring
     float t = float(iterations) / float(ubo.maxIterations);
     return applyColorPalette(t);
 }
