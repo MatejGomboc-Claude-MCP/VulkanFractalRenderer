@@ -287,6 +287,9 @@ std::filesystem::path FindShaderFile(const std::string& shaderName) {
 }
 
 void FractalRenderer::CreateGraphicsPipeline() {
+    VkShaderModule vertShaderModule = VK_NULL_HANDLE;
+    VkShaderModule fragShaderModule = VK_NULL_HANDLE;
+    
     try {
         // Try to find shader files
         std::filesystem::path vertShaderPath = FindShaderFile("fractal.vert.spv");
@@ -304,9 +307,18 @@ void FractalRenderer::CreateGraphicsPipeline() {
             throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath.string());
         }
 
+        // Validate SPIRV bytecode
+        if (vertShaderCode.size() % 4 != 0) {
+            throw std::runtime_error("Vertex shader SPIR-V bytecode is not properly aligned (size is not a multiple of 4 bytes)");
+        }
+        
+        if (fragShaderCode.size() % 4 != 0) {
+            throw std::runtime_error("Fragment shader SPIR-V bytecode is not properly aligned (size is not a multiple of 4 bytes)");
+        }
+
         // Create shader modules
-        VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-        VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+        vertShaderModule = CreateShaderModule(vertShaderCode);
+        fragShaderModule = CreateShaderModule(fragShaderCode);
 
         // Shader stage creation info
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -418,9 +430,20 @@ void FractalRenderer::CreateGraphicsPipeline() {
         // Clean up shader modules
         vkDestroyShaderModule(m_vulkanContext->GetDevice(), fragShaderModule, nullptr);
         vkDestroyShaderModule(m_vulkanContext->GetDevice(), vertShaderModule, nullptr);
+        fragShaderModule = VK_NULL_HANDLE;
+        vertShaderModule = VK_NULL_HANDLE;
     }
     catch (const std::exception& e) {
-        // Clean up any resources that may have been created before the error
+        // Clean up shader modules if they were created
+        if (fragShaderModule != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(m_vulkanContext->GetDevice(), fragShaderModule, nullptr);
+        }
+        
+        if (vertShaderModule != VK_NULL_HANDLE) {
+            vkDestroyShaderModule(m_vulkanContext->GetDevice(), vertShaderModule, nullptr);
+        }
+        
+        // Clean up pipeline layout if it was created
         if (m_pipelineLayout != VK_NULL_HANDLE) {
             vkDestroyPipelineLayout(m_vulkanContext->GetDevice(), m_pipelineLayout, nullptr);
             m_pipelineLayout = VK_NULL_HANDLE;
