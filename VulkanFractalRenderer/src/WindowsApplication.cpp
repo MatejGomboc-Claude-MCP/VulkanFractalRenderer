@@ -132,27 +132,44 @@ WindowsApplication::~WindowsApplication() {
 
 int WindowsApplication::Run() {
     MSG msg = {};
+    bool running = true;
 
     // Main message loop
-    while (true) {
+    while (running) {
         // Process all pending Windows messages
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             if (msg.message == WM_QUIT) {
-                return static_cast<int>(msg.wParam);
+                running = false;
+                break;
             }
 
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
 
-        // Render the fractal
-        try {
-            m_fractalRenderer->RenderFrame();
-        } catch (const std::exception& e) {
-            MessageBoxA(m_hwnd, e.what(), "Render Error", MB_OK | MB_ICONERROR);
-            return EXIT_FAILURE;
+        // If we're still running, render the fractal
+        if (running) {
+            try {
+                m_fractalRenderer->RenderFrame();
+            } catch (const std::exception& e) {
+                MessageBoxA(m_hwnd, e.what(), "Render Error", MB_OK | MB_ICONERROR);
+                running = false;
+                break;
+            }
         }
     }
+
+    // Make sure Vulkan device is idle before exiting
+    if (m_vulkanContext) {
+        try {
+            // Wait for any in-progress GPU operations to complete
+            vkDeviceWaitIdle(m_vulkanContext->GetDevice());
+        } catch (...) {
+            // Ignore errors during shutdown
+        }
+    }
+
+    return static_cast<int>(msg.wParam);
 }
 
 LRESULT CALLBACK WindowsApplication::WindowProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam) {
