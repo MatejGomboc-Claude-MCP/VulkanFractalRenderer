@@ -119,6 +119,35 @@ WindowsApplication::~WindowsApplication() {
     
     m_vulkanContext.reset();
 
+    // Destroy all controls
+    if (m_fractalTypeCombo) {
+        DestroyWindow(m_fractalTypeCombo);
+        m_fractalTypeCombo = nullptr;
+    }
+    
+    if (m_iterationsSlider) {
+        DestroyWindow(m_iterationsSlider);
+        m_iterationsSlider = nullptr;
+    }
+    
+    if (m_iterationsText) {
+        DestroyWindow(m_iterationsText);
+        m_iterationsText = nullptr;
+    }
+    
+    if (m_paletteCombo) {
+        DestroyWindow(m_paletteCombo);
+        m_paletteCombo = nullptr;
+    }
+    
+    if (m_resetButton) {
+        DestroyWindow(m_resetButton);
+        m_resetButton = nullptr;
+    }
+    
+    // Clear the control map
+    m_controlMap.clear();
+
     // Remove from map and destroy window
     if (m_hwnd) {
         g_windowMap.erase(m_hwnd);
