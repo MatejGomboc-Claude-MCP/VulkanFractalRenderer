@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstring>
 #include <cstdint>
+#include <sstream>
 
 // Debug callback function prototype
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -255,6 +256,11 @@ void VulkanContext::PickPhysicalDevice() {
     if (m_physicalDevice == VK_NULL_HANDLE) {
         throw std::runtime_error("Failed to find a suitable GPU!");
     }
+    
+    // Log the selected device
+    VkPhysicalDeviceProperties deviceProperties;
+    vkGetPhysicalDeviceProperties(m_physicalDevice, &deviceProperties);
+    std::cout << "Selected GPU: " << deviceProperties.deviceName << std::endl;
 }
 
 bool VulkanContext::IsDeviceSuitable(VkPhysicalDevice device) {
@@ -607,16 +613,36 @@ void VulkanContext::CleanupSwapChain() {
 }
 
 uint32_t VulkanContext::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+    // Get physical device memory properties
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-
+    
+    // Check for a compatible memory type that also satisfies our property requirements
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+        bool typeMatch = typeFilter & (1 << i);
+        bool propertyMatch = (memProperties.memoryTypes[i].propertyFlags & properties) == properties;
+        
+        if (typeMatch && propertyMatch) {
             return i;
         }
     }
-
-    throw std::runtime_error("Failed to find suitable memory type!");
+    
+    // If we get here, no suitable memory type was found
+    std::stringstream errorMsg;
+    errorMsg << "Failed to find suitable memory type!" << std::endl;
+    errorMsg << "Required type filter: 0x" << std::hex << typeFilter << std::endl;
+    errorMsg << "Required properties: 0x" << std::hex << properties << std::endl;
+    errorMsg << "Available memory types:" << std::endl;
+    
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        errorMsg << "  Type " << i << ": " 
+                 << "Filter bit " << ((typeFilter & (1 << i)) ? "matches" : "doesn't match")
+                 << ", Properties 0x" << std::hex << memProperties.memoryTypes[i].propertyFlags 
+                 << " (" << ((memProperties.memoryTypes[i].propertyFlags & properties) == properties ? "compatible" : "incompatible") << ")"
+                 << std::endl;
+    }
+    
+    throw std::runtime_error(errorMsg.str());
 }
 
 VkCommandBuffer VulkanContext::BeginSingleTimeCommands() {
