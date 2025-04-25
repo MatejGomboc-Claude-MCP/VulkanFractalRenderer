@@ -114,20 +114,22 @@ WindowsApplication::~WindowsApplication() {
     // Cleanup renderer and Vulkan before window destruction
     if (m_fractalRenderer) {
         m_fractalRenderer->Cleanup();
+        m_fractalRenderer.reset();
     }
     
-    m_fractalRenderer.reset();
     m_vulkanContext.reset();
 
     // Remove from map and destroy window
-    g_windowMap.erase(m_hwnd);
-    
     if (m_hwnd) {
+        g_windowMap.erase(m_hwnd);
         DestroyWindow(m_hwnd);
+        m_hwnd = nullptr;
     }
 
     // Unregister window class
-    UnregisterClassW(WINDOW_CLASS_NAME, m_hInstance);
+    if (m_hInstance) {
+        UnregisterClassW(WINDOW_CLASS_NAME, m_hInstance);
+    }
 }
 
 int WindowsApplication::Run() {
@@ -148,7 +150,7 @@ int WindowsApplication::Run() {
         }
 
         // If we're still running, render the fractal
-        if (running) {
+        if (running && m_fractalRenderer) {
             try {
                 m_fractalRenderer->RenderFrame();
             } catch (const std::exception& e) {
@@ -355,7 +357,9 @@ void WindowsApplication::CreateControls() {
 }
 
 void WindowsApplication::RegisterControl(HWND control, const std::string& id) {
-    m_controlMap[control] = id;
+    if (control) {
+        m_controlMap[control] = id;
+    }
 }
 
 void WindowsApplication::OnResize(int width, int height) {
@@ -435,6 +439,10 @@ void WindowsApplication::OnMouseMove(int x, int y, bool leftButtonDown) {
 }
 
 void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode) {
+    if (!controlHwnd) {
+        return;
+    }
+    
     auto it = m_controlMap.find(controlHwnd);
     if (it == m_controlMap.end()) {
         return;
@@ -442,7 +450,7 @@ void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode
 
     const std::string& controlId = it->second;
     
-    if (controlId == "fractalType" && notificationCode == CBN_SELCHANGE) {
+    if (controlId == "fractalType" && notificationCode == CBN_SELCHANGE && m_fractalTypeCombo) {
         int selection = SendMessage(m_fractalTypeCombo, CB_GETCURSEL, 0, 0);
         m_fractalType = selection;
         
@@ -450,7 +458,7 @@ void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode
             m_fractalRenderer->SetFractalType(static_cast<FractalType>(m_fractalType));
         }
     }
-    else if (controlId == "iterationsSlider" && notificationCode == TB_ENDTRACK) {
+    else if (controlId == "iterationsSlider" && notificationCode == TB_ENDTRACK && m_iterationsSlider && m_iterationsText) {
         int value = SendMessage(m_iterationsSlider, TBM_GETPOS, 0, 0);
         m_maxIterations = value;
         
@@ -463,7 +471,7 @@ void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode
             m_fractalRenderer->SetMaxIterations(m_maxIterations);
         }
     }
-    else if (controlId == "paletteCombo" && notificationCode == CBN_SELCHANGE) {
+    else if (controlId == "paletteCombo" && notificationCode == CBN_SELCHANGE && m_paletteCombo) {
         int selection = SendMessage(m_paletteCombo, CB_GETCURSEL, 0, 0);
         m_colorPalette = selection;
         
@@ -485,7 +493,9 @@ void WindowsApplication::OnControlCommand(HWND controlHwnd, int notificationCode
 
 void WindowsApplication::SetFractalType(int type) {
     m_fractalType = type;
-    SendMessage(m_fractalTypeCombo, CB_SETCURSEL, type, 0);
+    if (m_fractalTypeCombo) {
+        SendMessage(m_fractalTypeCombo, CB_SETCURSEL, type, 0);
+    }
     
     if (m_fractalRenderer) {
         m_fractalRenderer->SetFractalType(static_cast<FractalType>(type));
@@ -494,12 +504,16 @@ void WindowsApplication::SetFractalType(int type) {
 
 void WindowsApplication::SetMaxIterations(int iterations) {
     m_maxIterations = iterations;
-    SendMessage(m_iterationsSlider, TBM_SETPOS, TRUE, iterations);
+    if (m_iterationsSlider) {
+        SendMessage(m_iterationsSlider, TBM_SETPOS, TRUE, iterations);
+    }
     
     // Update text display
-    wchar_t buffer[16];
-    swprintf_s(buffer, L"%d", iterations);
-    SetWindowTextW(m_iterationsText, buffer);
+    if (m_iterationsText) {
+        wchar_t buffer[16];
+        swprintf_s(buffer, L"%d", iterations);
+        SetWindowTextW(m_iterationsText, buffer);
+    }
     
     if (m_fractalRenderer) {
         m_fractalRenderer->SetMaxIterations(iterations);
@@ -508,7 +522,9 @@ void WindowsApplication::SetMaxIterations(int iterations) {
 
 void WindowsApplication::SetColorPalette(int palette) {
     m_colorPalette = palette;
-    SendMessage(m_paletteCombo, CB_SETCURSEL, palette, 0);
+    if (m_paletteCombo) {
+        SendMessage(m_paletteCombo, CB_SETCURSEL, palette, 0);
+    }
     
     if (m_fractalRenderer) {
         m_fractalRenderer->SetColorPalette(static_cast<ColorPalette>(palette));
