@@ -8,7 +8,8 @@
 #include <cstring>
 #include <cmath>
 #include <immintrin.h> // For SIMD optimization
-#include <filesystem>  // For checking file existence
+#include <filesystem>  // For path operations and checking file existence
+#include <Windows.h>   // For GetModuleFileName
 
 FractalRenderer::FractalRenderer(VulkanContext* vulkanContext)
     : m_vulkanContext(vulkanContext)
@@ -79,14 +80,20 @@ void FractalRenderer::Cleanup() {
         vkDestroyDescriptorPool(device, m_descriptorPool, nullptr);
     }
     
-    // Clean up uniform buffers
+    // Clean up uniform buffers and unmap memory
     for (size_t i = 0; i < m_uniformBuffers.size(); i++) {
-        if (m_uniformBuffers[i] != VK_NULL_HANDLE) {
-            vkDestroyBuffer(device, m_uniformBuffers[i], nullptr);
+        if (m_uniformBuffersMemory.size() > i && m_uniformBuffersMemory[i] != VK_NULL_HANDLE) {
+            // Unmap memory before destroying
+            if (m_uniformBuffersMapped.size() > i && m_uniformBuffersMapped[i] != nullptr) {
+                vkUnmapMemory(device, m_uniformBuffersMemory[i]);
+                m_uniformBuffersMapped[i] = nullptr;
+            }
+            
+            vkFreeMemory(device, m_uniformBuffersMemory[i], nullptr);
         }
         
-        if (i < m_uniformBuffersMemory.size() && m_uniformBuffersMemory[i] != VK_NULL_HANDLE) {
-            vkFreeMemory(device, m_uniformBuffersMemory[i], nullptr);
+        if (m_uniformBuffers[i] != VK_NULL_HANDLE) {
+            vkDestroyBuffer(device, m_uniformBuffers[i], nullptr);
         }
     }
     
@@ -212,29 +219,40 @@ void FractalRenderer::CreateDescriptorSetLayout() {
     }
 }
 
+// Helper function to get the executable path
+std::filesystem::path GetExecutablePath() {
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    return std::filesystem::path(exePath).parent_path();
+}
+
 void FractalRenderer::CreateGraphicsPipeline() {
-    // Load shader code
-    std::string vertShaderPath = "shaders/fractal.vert.spv";
-    std::string fragShaderPath = "shaders/fractal.frag.spv";
+    // Get the executable directory to find shader files
+    std::filesystem::path executableDir = GetExecutablePath();
+    
+    // Construct shader paths
+    std::filesystem::path vertShaderPath = executableDir / "shaders" / "fractal.vert.spv";
+    std::filesystem::path fragShaderPath = executableDir / "shaders" / "fractal.frag.spv";
     
     // Check if shader files exist
     if (!std::filesystem::exists(vertShaderPath)) {
-        throw std::runtime_error("Vertex shader file not found: " + vertShaderPath);
+        throw std::runtime_error("Vertex shader file not found: " + vertShaderPath.string());
     }
     
     if (!std::filesystem::exists(fragShaderPath)) {
-        throw std::runtime_error("Fragment shader file not found: " + fragShaderPath);
+        throw std::runtime_error("Fragment shader file not found: " + fragShaderPath.string());
     }
     
-    auto vertShaderCode = ReadFile(vertShaderPath);
-    auto fragShaderCode = ReadFile(fragShaderPath);
+    // Load shader code
+    auto vertShaderCode = ReadFile(vertShaderPath.string());
+    auto fragShaderCode = ReadFile(fragShaderPath.string());
     
     if (vertShaderCode.empty()) {
-        throw std::runtime_error("Vertex shader file is empty: " + vertShaderPath);
+        throw std::runtime_error("Vertex shader file is empty: " + vertShaderPath.string());
     }
     
     if (fragShaderCode.empty()) {
-        throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath);
+        throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath.string());
     }
 
     // Create shader modules
