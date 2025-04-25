@@ -259,16 +259,17 @@ std::filesystem::path FindShaderFile(const std::string& shaderName) {
         executableDir / "shaders" / shaderName,
         // Then look directly in the executable directory
         executableDir / shaderName,
-        // Also check one level up (useful for debugging from Visual Studio)
+        // Check in the Debug/Release directory folders
         executableDir / ".." / "shaders" / shaderName,
-        // Also check two levels up (useful for debugging from Visual Studio)
-        executableDir / ".." / ".." / "shaders" / shaderName,
-        // Check in the source directory relative to executable directory
-        executableDir / ".." / ".." / "VulkanFractalRenderer" / "shaders" / shaderName
+        // Check for Visual Studio project structure
+        executableDir / ".." / ".." / "VulkanFractalRenderer" / "shaders" / shaderName,
+        // Check for deeper project structures
+        executableDir / ".." / ".." / ".." / "VulkanFractalRenderer" / "shaders" / shaderName
     };
     
     // Try all paths
     for (const auto& path : searchPaths) {
+        std::cout << "Checking path: " << path.string() << std::endl;
         if (std::filesystem::exists(path)) {
             std::cout << "Found shader file at: " << path.string() << std::endl;
             return path;
