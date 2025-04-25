@@ -230,17 +230,32 @@ void FractalRenderer::CreateGraphicsPipeline() {
     // Get the executable directory to find shader files
     std::filesystem::path executableDir = GetExecutablePath();
     
-    // Construct shader paths
+    // Look for shader files
+    // 1. Try in the shaders subfolder of the executable directory first
+    // 2. If not found, try in the same directory as the executable (where VS puts them)
     std::filesystem::path vertShaderPath = executableDir / "shaders" / "fractal.vert.spv";
     std::filesystem::path fragShaderPath = executableDir / "shaders" / "fractal.frag.spv";
     
-    // Check if shader files exist
+    // If not found in subfolder, check in the executable directory
     if (!std::filesystem::exists(vertShaderPath)) {
-        throw std::runtime_error("Vertex shader file not found: " + vertShaderPath.string());
+        vertShaderPath = executableDir / "fractal.vert.spv";
     }
     
     if (!std::filesystem::exists(fragShaderPath)) {
-        throw std::runtime_error("Fragment shader file not found: " + fragShaderPath.string());
+        fragShaderPath = executableDir / "fractal.frag.spv";
+    }
+    
+    // Check if shader files exist, if not throw specific error
+    if (!std::filesystem::exists(vertShaderPath)) {
+        throw std::runtime_error("Vertex shader file not found. Tried: " 
+            + (executableDir / "shaders" / "fractal.vert.spv").string() + " and " 
+            + (executableDir / "fractal.vert.spv").string());
+    }
+    
+    if (!std::filesystem::exists(fragShaderPath)) {
+        throw std::runtime_error("Fragment shader file not found. Tried: " 
+            + (executableDir / "shaders" / "fractal.frag.spv").string() + " and " 
+            + (executableDir / "fractal.frag.spv").string());
     }
     
     // Load shader code
