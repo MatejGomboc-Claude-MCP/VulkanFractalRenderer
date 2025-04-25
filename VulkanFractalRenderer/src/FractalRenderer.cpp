@@ -10,6 +10,7 @@
 #include <immintrin.h> // For SIMD optimization
 #include <filesystem>  // For path operations and checking file existence
 #include <Windows.h>   // For GetModuleFileName
+#include <sstream>     // For string formatting
 
 FractalRenderer::FractalRenderer(VulkanContext* vulkanContext)
     : m_vulkanContext(vulkanContext)
@@ -241,168 +242,184 @@ void FractalRenderer::CreateDescriptorSetLayout() {
 // Helper function to get the executable path
 std::filesystem::path GetExecutablePath() {
     wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    if (GetModuleFileNameW(nullptr, exePath, MAX_PATH) == 0) {
+        throw std::runtime_error("Failed to get executable path. Error code: " + std::to_string(GetLastError()));
+    }
     return std::filesystem::path(exePath).parent_path();
 }
 
-void FractalRenderer::CreateGraphicsPipeline() {
-    // Get the executable directory to find shader files
+// Function to find shader file in multiple possible locations
+std::filesystem::path FindShaderFile(const std::string& shaderName) {
     std::filesystem::path executableDir = GetExecutablePath();
     
-    // Look for shader files
-    // 1. Try in the shaders subfolder of the executable directory first
-    // 2. If not found, try in the same directory as the executable (where VS puts them)
-    std::filesystem::path vertShaderPath = executableDir / "shaders" / "fractal.vert.spv";
-    std::filesystem::path fragShaderPath = executableDir / "shaders" / "fractal.frag.spv";
-    
-    // If not found in subfolder, check in the executable directory
-    if (!std::filesystem::exists(vertShaderPath)) {
-        vertShaderPath = executableDir / "fractal.vert.spv";
-    }
-    
-    if (!std::filesystem::exists(fragShaderPath)) {
-        fragShaderPath = executableDir / "fractal.frag.spv";
-    }
-    
-    // Check if shader files exist, if not throw specific error
-    if (!std::filesystem::exists(vertShaderPath)) {
-        throw std::runtime_error("Vertex shader file not found. Tried: " 
-            + (executableDir / "shaders" / "fractal.vert.spv").string() + " and " 
-            + (executableDir / "fractal.vert.spv").string());
-    }
-    
-    if (!std::filesystem::exists(fragShaderPath)) {
-        throw std::runtime_error("Fragment shader file not found. Tried: " 
-            + (executableDir / "shaders" / "fractal.frag.spv").string() + " and " 
-            + (executableDir / "fractal.frag.spv").string());
-    }
-    
-    // Load shader code
-    auto vertShaderCode = ReadFile(vertShaderPath.string());
-    auto fragShaderCode = ReadFile(fragShaderPath.string());
-    
-    if (vertShaderCode.empty()) {
-        throw std::runtime_error("Vertex shader file is empty: " + vertShaderPath.string());
-    }
-    
-    if (fragShaderCode.empty()) {
-        throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath.string());
-    }
-
-    // Create shader modules
-    VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
-
-    // Shader stage creation info
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
-
-    // Vertex input state
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-
-    // Input assembly state
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
-
-    // Viewport and scissor state
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
-
-    // Rasterization state
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-
-    // Multisample state
-    VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    // Color blend state
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
-
-    // Dynamic state
-    std::vector<VkDynamicState> dynamicStates = {
-        VK_DYNAMIC_STATE_VIEWPORT,
-        VK_DYNAMIC_STATE_SCISSOR
+    // Search paths in priority order
+    std::vector<std::filesystem::path> searchPaths = {
+        executableDir / "shaders" / shaderName,
+        executableDir / shaderName,
+        executableDir / ".." / "shaders" / shaderName,
+        executableDir / ".." / ".." / "shaders" / shaderName
     };
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
-
-    // Pipeline layout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;
-    pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
-
-    if (vkCreatePipelineLayout(m_vulkanContext->GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create pipeline layout!");
+    
+    // Try all paths
+    for (const auto& path : searchPaths) {
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
     }
-
-    // Create the graphics pipeline
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = nullptr;
-    pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = m_pipelineLayout;
-    pipelineInfo.renderPass = m_renderPass;
-    pipelineInfo.subpass = 0;
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-    VkResult result = vkCreateGraphicsPipelines(m_vulkanContext->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline);
-    if (result != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create graphics pipeline! Error code: " + std::to_string(result));
+    
+    // If not found, return the first path and let the caller handle the error
+    std::stringstream errorMsg;
+    errorMsg << "Shader file not found: " << shaderName << "\n";
+    errorMsg << "Searched in the following locations:\n";
+    for (const auto& path : searchPaths) {
+        errorMsg << "  - " << path.string() << "\n";
     }
+    throw std::runtime_error(errorMsg.str());
+}
 
-    // Clean up shader modules
-    vkDestroyShaderModule(m_vulkanContext->GetDevice(), fragShaderModule, nullptr);
-    vkDestroyShaderModule(m_vulkanContext->GetDevice(), vertShaderModule, nullptr);
+void FractalRenderer::CreateGraphicsPipeline() {
+    try {
+        // Try to find shader files
+        std::filesystem::path vertShaderPath = FindShaderFile("fractal.vert.spv");
+        std::filesystem::path fragShaderPath = FindShaderFile("fractal.frag.spv");
+        
+        // Load shader code
+        auto vertShaderCode = ReadFile(vertShaderPath.string());
+        auto fragShaderCode = ReadFile(fragShaderPath.string());
+        
+        if (vertShaderCode.empty()) {
+            throw std::runtime_error("Vertex shader file is empty: " + vertShaderPath.string());
+        }
+        
+        if (fragShaderCode.empty()) {
+            throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath.string());
+        }
+
+        // Create shader modules
+        VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
+        VkShaderModule fragShaderModule = CreateShaderModule(fragShaderCode);
+
+        // Shader stage creation info
+        VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
+        vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vertShaderStageInfo.module = vertShaderModule;
+        vertShaderStageInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
+        fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.pName = "main";
+
+        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
+
+        // Vertex input state
+        VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+        vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+
+        // Input assembly state
+        VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+        inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+        // Viewport and scissor state
+        VkPipelineViewportStateCreateInfo viewportState{};
+        viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportState.viewportCount = 1;
+        viewportState.scissorCount = 1;
+
+        // Rasterization state
+        VkPipelineRasterizationStateCreateInfo rasterizer{};
+        rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizer.depthClampEnable = VK_FALSE;
+        rasterizer.rasterizerDiscardEnable = VK_FALSE;
+        rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+        rasterizer.lineWidth = 1.0f;
+        rasterizer.cullMode = VK_CULL_MODE_NONE;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        rasterizer.depthBiasEnable = VK_FALSE;
+
+        // Multisample state
+        VkPipelineMultisampleStateCreateInfo multisampling{};
+        multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampling.sampleShadingEnable = VK_FALSE;
+        multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+        // Color blend state
+        VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+        colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+        colorBlendAttachment.blendEnable = VK_FALSE;
+
+        VkPipelineColorBlendStateCreateInfo colorBlending{};
+        colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlending.logicOpEnable = VK_FALSE;
+        colorBlending.attachmentCount = 1;
+        colorBlending.pAttachments = &colorBlendAttachment;
+
+        // Dynamic state
+        std::vector<VkDynamicState> dynamicStates = {
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+
+        VkPipelineDynamicStateCreateInfo dynamicState{};
+        dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
+        dynamicState.pDynamicStates = dynamicStates.data();
+
+        // Pipeline layout
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &m_descriptorSetLayout;
+
+        if (vkCreatePipelineLayout(m_vulkanContext->GetDevice(), &pipelineLayoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create pipeline layout!");
+        }
+
+        // Create the graphics pipeline
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
+        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineInfo.stageCount = 2;
+        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pVertexInputState = &vertexInputInfo;
+        pipelineInfo.pInputAssemblyState = &inputAssembly;
+        pipelineInfo.pViewportState = &viewportState;
+        pipelineInfo.pRasterizationState = &rasterizer;
+        pipelineInfo.pMultisampleState = &multisampling;
+        pipelineInfo.pDepthStencilState = nullptr;
+        pipelineInfo.pColorBlendState = &colorBlending;
+        pipelineInfo.pDynamicState = &dynamicState;
+        pipelineInfo.layout = m_pipelineLayout;
+        pipelineInfo.renderPass = m_renderPass;
+        pipelineInfo.subpass = 0;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
+        VkResult result = vkCreateGraphicsPipelines(m_vulkanContext->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline);
+        if (result != VK_SUCCESS) {
+            throw std::runtime_error("Failed to create graphics pipeline! Error code: " + std::to_string(result));
+        }
+
+        // Clean up shader modules
+        vkDestroyShaderModule(m_vulkanContext->GetDevice(), fragShaderModule, nullptr);
+        vkDestroyShaderModule(m_vulkanContext->GetDevice(), vertShaderModule, nullptr);
+    }
+    catch (const std::exception& e) {
+        // Clean up any resources that may have been created before the error
+        if (m_pipelineLayout != VK_NULL_HANDLE) {
+            vkDestroyPipelineLayout(m_vulkanContext->GetDevice(), m_pipelineLayout, nullptr);
+            m_pipelineLayout = VK_NULL_HANDLE;
+        }
+        
+        // Rethrow with additional information
+        throw std::runtime_error("Pipeline creation failed: " + std::string(e.what()));
+    }
 }
 
 void FractalRenderer::CreateFramebuffers() {
@@ -624,47 +641,63 @@ void FractalRenderer::RenderFrame() {
     // Wait for previous frame to finish
     vkWaitForFences(m_vulkanContext->GetDevice(), 1, &m_inFlightFences[m_currentFrame], VK_TRUE, UINT64_MAX);
 
-    // Acquire the next image
-    uint32_t imageIndex = m_vulkanContext->AcquireNextImage(m_imageAvailableSemaphores[m_currentFrame]);
+    try {
+        // Acquire the next image
+        uint32_t imageIndex = m_vulkanContext->AcquireNextImage(m_imageAvailableSemaphores[m_currentFrame]);
 
-    // Update uniform buffer with fractal parameters
-    UpdateUniformBuffer(imageIndex);
+        // Update uniform buffer with fractal parameters
+        UpdateUniformBuffer(imageIndex);
 
-    // Reset the fence for this frame
-    vkResetFences(m_vulkanContext->GetDevice(), 1, &m_inFlightFences[m_currentFrame]);
+        // Reset the fence for this frame
+        vkResetFences(m_vulkanContext->GetDevice(), 1, &m_inFlightFences[m_currentFrame]);
 
-    // Reset and record command buffer
-    vkResetCommandBuffer(m_commandBuffers[imageIndex], 0);
-    RecordCommandBuffer(m_commandBuffers[imageIndex], imageIndex);
+        // Reset and record command buffer
+        vkResetCommandBuffer(m_commandBuffers[imageIndex], 0);
+        RecordCommandBuffer(m_commandBuffers[imageIndex], imageIndex);
 
-    // Submit the command buffer
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        // Submit the command buffer
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffers[imageIndex];
+        VkSemaphore waitSemaphores[] = { m_imageAvailableSemaphores[m_currentFrame] };
+        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = waitSemaphores;
+        submitInfo.pWaitDstStageMask = waitStages;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &m_commandBuffers[imageIndex];
 
-    VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
+        VkSemaphore signalSemaphores[] = { m_renderFinishedSemaphores[m_currentFrame] };
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_vulkanContext->GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to submit draw command buffer!");
+        if (vkQueueSubmit(m_vulkanContext->GetGraphicsQueue(), 1, &submitInfo, m_inFlightFences[m_currentFrame]) != VK_SUCCESS) {
+            throw std::runtime_error("Failed to submit draw command buffer!");
+        }
+
+        // Present the result
+        m_vulkanContext->PresentImage(imageIndex, m_renderFinishedSemaphores[m_currentFrame]);
+
+        // Move to the next frame
+        m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
-
-    // Present the result
-    m_vulkanContext->PresentImage(imageIndex, m_renderFinishedSemaphores[m_currentFrame]);
-
-    // Move to the next frame
-    m_currentFrame = (m_currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+    catch (const std::exception& e) {
+        // Ensure fence is reset in case of an error
+        vkResetFences(m_vulkanContext->GetDevice(), 1, &m_inFlightFences[m_currentFrame]);
+        throw; // Re-throw the exception
+    }
 }
 
 VkShaderModule FractalRenderer::CreateShaderModule(const std::vector<char>& code) {
+    if (code.empty()) {
+        throw std::runtime_error("Cannot create shader module from empty code");
+    }
+    
+    // Ensure proper alignment for SPIR-V
+    if (code.size() % 4 != 0) {
+        throw std::runtime_error("Shader code size is not a multiple of 4 bytes (invalid SPIR-V)");
+    }
+    
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
@@ -680,19 +713,36 @@ VkShaderModule FractalRenderer::CreateShaderModule(const std::vector<char>& code
 }
 
 std::vector<char> FractalRenderer::ReadFile(const std::string& filename) {
+    // Verify the file exists
+    if (!std::filesystem::exists(filename)) {
+        throw std::runtime_error("File does not exist: " + filename);
+    }
+    
+    // Open the file for binary reading at the end to get size
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filename);
+        throw std::runtime_error("Failed to open file: " + filename + 
+                              " (Error code: " + std::to_string(errno) + ")");
     }
 
+    // Get file size and allocate buffer
     size_t fileSize = static_cast<size_t>(file.tellg());
+    if (fileSize == 0) {
+        throw std::runtime_error("File is empty: " + filename);
+    }
+    
     std::vector<char> buffer(fileSize);
 
+    // Move to the beginning and read the file
     file.seekg(0);
-    file.read(buffer.data(), fileSize);
+    if (!file.read(buffer.data(), fileSize)) {
+        throw std::runtime_error("Failed to read file: " + filename + 
+                              " (Read " + std::to_string(file.gcount()) + 
+                              " bytes out of " + std::to_string(fileSize) + ")");
+    }
+    
     file.close();
-
     return buffer;
 }
 
