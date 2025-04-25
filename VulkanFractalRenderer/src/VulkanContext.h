@@ -84,6 +84,9 @@ private:
     bool CheckDeviceExtensionSupport(VkPhysicalDevice device);
     SwapChainSupportDetails QuerySwapChainSupport(VkPhysicalDevice device);
     
+    // Extension helpers
+    std::vector<const char*> GetRequiredExtensions();
+    
     // Swapchain helpers 
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
