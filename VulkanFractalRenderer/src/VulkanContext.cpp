@@ -594,12 +594,16 @@ void VulkanContext::CleanupSwapChain() {
     for (auto imageView : m_swapChainImageViews) {
         vkDestroyImageView(m_device, imageView, nullptr);
     }
+    m_swapChainImageViews.clear();
 
     // Destroy swap chain
     if (m_swapChain != VK_NULL_HANDLE) {
         vkDestroySwapchainKHR(m_device, m_swapChain, nullptr);
         m_swapChain = VK_NULL_HANDLE;
     }
+    
+    // Clear the images array (we don't own these, they're destroyed with the swap chain)
+    m_swapChainImages.clear();
 }
 
 uint32_t VulkanContext::FindMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
