@@ -633,8 +633,8 @@ void FractalRenderer::RecordCommandBuffer(VkCommandBuffer commandBuffer, uint32_
     // Bind descriptor set
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSets[imageIndex], 0, nullptr);
 
-    // Draw fullscreen quad (two triangles)
-    vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+    // Draw fullscreen triangle
+    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
     // End render pass
     vkCmdEndRenderPass(commandBuffer);
