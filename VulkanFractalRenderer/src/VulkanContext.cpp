@@ -681,14 +681,14 @@ void VulkanContext::EndSingleTimeCommands(VkCommandBuffer commandBuffer) {
 uint32_t VulkanContext::AcquireNextImage(VkSemaphore imageAvailableSemaphore) {
     uint32_t imageIndex;
     
-    // Try to acquire next image in a loop, recreating the swapchain if necessary
+    // Try to acquire next image, recreating the swapchain if necessary
     bool swapChainRecreated = false;
     VkResult result;
     
     do {
         // Attempt to acquire the next image
         result = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, 
-                                       imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+                                     imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
         
         // Handle swapchain outdated or suboptimal
         if (result == VK_ERROR_OUT_OF_DATE_KHR || 
@@ -703,14 +703,16 @@ uint32_t VulkanContext::AcquireNextImage(VkSemaphore imageAvailableSemaphore) {
             m_framebufferResized = false;
             RecreateSwapChain();
             swapChainRecreated = true;
+            
+            // After recreation, go back to the beginning of the loop and try again
+            continue;
         } 
         else if (result != VK_SUCCESS) {
             throw std::runtime_error("Failed to acquire swap chain image!");
         }
-        else {
-            // Successful acquisition, break out of the loop
-            break;
-        }
+        
+        // Successful acquisition, break out of the loop
+        break;
     } while (true);
 
     return imageIndex;
