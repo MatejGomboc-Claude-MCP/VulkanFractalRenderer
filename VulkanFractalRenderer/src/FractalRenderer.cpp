@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cmath>
 #include <immintrin.h> // For SIMD optimization
+#include <filesystem>  // For checking file existence
 
 FractalRenderer::FractalRenderer(VulkanContext* vulkanContext)
     : m_vulkanContext(vulkanContext)
@@ -213,8 +214,28 @@ void FractalRenderer::CreateDescriptorSetLayout() {
 
 void FractalRenderer::CreateGraphicsPipeline() {
     // Load shader code
-    auto vertShaderCode = ReadFile("shaders/fractal.vert.spv");
-    auto fragShaderCode = ReadFile("shaders/fractal.frag.spv");
+    std::string vertShaderPath = "shaders/fractal.vert.spv";
+    std::string fragShaderPath = "shaders/fractal.frag.spv";
+    
+    // Check if shader files exist
+    if (!std::filesystem::exists(vertShaderPath)) {
+        throw std::runtime_error("Vertex shader file not found: " + vertShaderPath);
+    }
+    
+    if (!std::filesystem::exists(fragShaderPath)) {
+        throw std::runtime_error("Fragment shader file not found: " + fragShaderPath);
+    }
+    
+    auto vertShaderCode = ReadFile(vertShaderPath);
+    auto fragShaderCode = ReadFile(fragShaderPath);
+    
+    if (vertShaderCode.empty()) {
+        throw std::runtime_error("Vertex shader file is empty: " + vertShaderPath);
+    }
+    
+    if (fragShaderCode.empty()) {
+        throw std::runtime_error("Fragment shader file is empty: " + fragShaderPath);
+    }
 
     // Create shader modules
     VkShaderModule vertShaderModule = CreateShaderModule(vertShaderCode);
@@ -322,8 +343,9 @@ void FractalRenderer::CreateGraphicsPipeline() {
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if (vkCreateGraphicsPipelines(m_vulkanContext->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create graphics pipeline!");
+    VkResult result = vkCreateGraphicsPipelines(m_vulkanContext->GetDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_graphicsPipeline);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create graphics pipeline! Error code: " + std::to_string(result));
     }
 
     // Clean up shader modules
@@ -597,8 +619,9 @@ VkShaderModule FractalRenderer::CreateShaderModule(const std::vector<char>& code
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(m_vulkanContext->GetDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("Failed to create shader module!");
+    VkResult result = vkCreateShaderModule(m_vulkanContext->GetDevice(), &createInfo, nullptr, &shaderModule);
+    if (result != VK_SUCCESS) {
+        throw std::runtime_error("Failed to create shader module! Error code: " + std::to_string(result));
     }
 
     return shaderModule;
