@@ -4,26 +4,23 @@
 layout(location = 0) out vec2 fragCoord;
 
 // Vertex shader for a full-screen quad (no input vertices needed)
-// We use a triangle strip to create two triangles that cover the entire screen
+// Using a more efficient approach with a single triangle that covers the screen
 
 void main() {
-    // Create a full-screen quad with just the vertex ID
-    // Use 6 vertices to create 2 triangles with a triangle list
-    vec2 positions[6] = vec2[](
-        vec2(-1.0, -1.0), // Bottom-left triangle
-        vec2( 1.0, -1.0),
-        vec2(-1.0,  1.0),
-        
-        vec2( 1.0, -1.0), // Top-right triangle
-        vec2( 1.0,  1.0),
-        vec2(-1.0,  1.0)
+    // Use vertex ID to create a large triangle that covers the entire screen
+    // This is more efficient than using two triangles
+    vec2 positions[3] = vec2[](
+        vec2(-1.0, -1.0),  // Bottom left
+        vec2(3.0, -1.0),   // Bottom right (extended to ensure coverage)
+        vec2(-1.0, 3.0)    // Top left (extended to ensure coverage)
     );
     
-    // Normalized device coordinates (NDC) position
-    vec2 position = positions[gl_VertexIndex];
+    // Get the position from the vertex ID
+    vec2 position = positions[gl_VertexIndex % 3];
     
     // Pass the position to the fragment shader as texture coordinates
-    fragCoord = position * 0.5 + 0.5; // Convert from [-1,1] to [0,1] range
+    // Map from [-1,1] to [0,1] range
+    fragCoord = position * 0.5 + 0.5;
     
     // Output vertex position (no transformation needed since already in NDC)
     gl_Position = vec4(position, 0.0, 1.0);
