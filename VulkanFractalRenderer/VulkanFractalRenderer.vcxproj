@@ -67,7 +67,9 @@
     <PreBuildEvent>
       <Command>if not exist "$(OutDir)shaders" mkdir "$(OutDir)shaders"
 $(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.vert" -o "$(OutDir)shaders\fractal.vert.spv"
-$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)shaders\fractal.frag.spv"</Command>
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)shaders\fractal.frag.spv"
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.vert" -o "$(OutDir)fractal.vert.spv"
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)fractal.frag.spv"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -95,7 +97,9 @@ $(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)sha
     <PreBuildEvent>
       <Command>if not exist "$(OutDir)shaders" mkdir "$(OutDir)shaders"
 $(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.vert" -o "$(OutDir)shaders\fractal.vert.spv"
-$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)shaders\fractal.frag.spv"</Command>
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)shaders\fractal.frag.spv"
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.vert" -o "$(OutDir)fractal.vert.spv"
+$(VULKAN_SDK)\Bin\glslc.exe "$(ProjectDir)shaders\fractal.frag" -o "$(OutDir)fractal.frag.spv"</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
